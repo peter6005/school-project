@@ -34,8 +34,7 @@ project(mikrobi-cansat C CXX ASM)
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
-
-add_executable(mikrobi-cansat mikrobi-cansat.c )
+add_executable(mikrobi-cansat main.c bmp280.c)
 
 pico_set_program_name(mikrobi-cansat "mikrobi-cansat")
 pico_set_program_version(mikrobi-cansat "0.1")
@@ -46,7 +45,9 @@ pico_enable_stdio_usb(mikrobi-cansat 1)
 
 # Add the standard library to the build
 target_link_libraries(mikrobi-cansat
-        pico_stdlib)
+        pico_stdlib
+        hardware_i2c
+)
 
 # Add the standard include files to the build
 target_include_directories(mikrobi-cansat PRIVATE
@@ -54,4 +55,3 @@ target_include_directories(mikrobi-cansat PRIVATE
 )
 
 pico_add_extra_outputs(mikrobi-cansat)
-
