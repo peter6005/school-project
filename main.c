@@ -23,11 +23,11 @@ int main() {
     gpio_pull_up(SDA_PIN);
     gpio_pull_up(SCL_PIN);
     bmp280_attach(i2c0, BMP280_ADDR);
+    struct bmp280_calib_param params;
 
-    // Read and verify BMP280 ID
     uint8_t bmp_id = bmp280_read_id();
     if (bmp_id == BMP280_ID) {
-        bmp280_calibrate();
+        bmp280_calibrate(&params);
     } else {
         printf("BMP280 not found or unexpected ID. Expected: 0x%02X, actual: 0x%02X\n", BMP280_ID, bmp_id);
         bmp_id = 0; // Indicate unsuccessful initialization
@@ -36,7 +36,7 @@ int main() {
     while (true) {
         if (bmp_id != 0) {
             int32_t raw_temp = bmp280_read_temp_raw();
-            int32_t temp = bmp280_raw_to_celsius(raw_temp);
+            int32_t temp = bmp280_raw_to_celsius(raw_temp, &params);
             printf("BMP280 raw temperature: %ld\n", raw_temp);
             printf("Temp: %.2f C\n", temp / 100.f);
         }
