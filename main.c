@@ -1,6 +1,7 @@
 #include "bmp280.h"
 #include "pico/stdlib.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 #define SDA_PIN 4
 #define SCL_PIN 5
@@ -14,7 +15,7 @@ int main() {
     // Wait for USB debug connection
     while (!stdio_usb_connected()) sleep_ms(100);
 
-    printf("BMP280 initialization test\n");
+    printf("BMP280 test\n");
 
     // Standart 100kHz I2C init at I2C0 for BMP280
     i2c_init(i2c0, 100000);
@@ -29,16 +30,19 @@ int main() {
     if (bmp_id == BMP280_ID) {
         bmp280_calibrate(&params);
     } else {
-        printf("BMP280 not found or unexpected ID. Expected: 0x%02X, actual: 0x%02X\n", BMP280_ID, bmp_id);
+        printf("[ERROR] BMP280 not found or unexpected ID. Expected: 0x%02X, actual: 0x%02X\n", BMP280_ID, bmp_id);
         bmp_id = 0; // Indicate unsuccessful initialization
     }
 
     while (true) {
         if (bmp_id != 0) {
-            int32_t raw_temp = bmp280_read_temp_raw();
-            int32_t temp = bmp280_raw_to_celsius(raw_temp, &params);
-            printf("BMP280 raw temperature: %ld\n", raw_temp);
-            printf("Temp: %.2f C\n", temp / 100.f);
+            int32_t temp;
+            uint32_t press;
+
+            bmp280_get_temp_and_press(&temp, &press, &params);
+            printf("Temperature: %ld.%02ld C, Pressure: %lu.%02lu hPa\n", // %ld.%02d is better than %f for embedded, due to no float support
+                   temp / 100, labs(temp % 100), // use labs to avoid -1.23 C --> -1.-23 C scenario
+                   press / 100, press % 100);
         }
 
         sleep_ms(500);
