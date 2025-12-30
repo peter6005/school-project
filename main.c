@@ -38,7 +38,7 @@ int main() {
             int32_t raw_temp = bmp280_read_temp_raw();
             int32_t temp = bmp280_raw_to_celsius(raw_temp);
             printf("BMP280 raw temperature: %ld\n", raw_temp);
-            printf("Temp: %ld.%02ld C\n", temp / 100, temp % 100);
+            printf("Temp: %.2f C\n", temp / 100.f);
         }
 
         sleep_ms(500);
