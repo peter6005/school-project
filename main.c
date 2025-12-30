@@ -26,19 +26,21 @@ int main() {
 
     // Read and verify BMP280 ID
     uint8_t bmp_id = bmp280_read_id();
-    if (bmp_id != BMP280_ID) {
+    if (bmp_id == BMP280_ID) {
+        bmp280_calibrate();
+    } else {
         printf("BMP280 not found or unexpected ID. Expected: 0x%02X, actual: 0x%02X\n", BMP280_ID, bmp_id);
         bmp_id = 0; // Indicate unsuccessful initialization
     }
 
-    gpio_init(PICO_ONBOARD_LED_PIN);
-    gpio_set_dir(PICO_ONBOARD_LED_PIN, GPIO_OUT);
-
     while (true) {
-        // blink LED to show activity
-        gpio_put(PICO_ONBOARD_LED_PIN, 1);
-        sleep_ms(100);
-        gpio_put(PICO_ONBOARD_LED_PIN, 0);
-        sleep_ms(100);
+        if (bmp_id != 0) {
+            int32_t raw_temp = bmp280_read_temp_raw();
+            int32_t temp = bmp280_raw_to_celsius(raw_temp);
+            printf("BMP280 raw temperature: %ld\n", raw_temp);
+            printf("Temp: %ld.%02ld C\n", temp / 100, temp % 100);
+        }
+
+        sleep_ms(500);
     }
 }
