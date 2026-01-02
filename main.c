@@ -9,6 +9,9 @@
 #define BMP280_ID 0x58
 #define PICO_ONBOARD_LED_PIN 25
 
+int32_t temp;
+uint32_t press;
+
 int main() {
     stdio_init_all();
 
@@ -29,6 +32,9 @@ int main() {
     uint8_t bmp_id = bmp280_read_id();
     if (bmp_id == BMP280_ID) {
         bmp280_calibrate(&params);
+        // After calibration, in forced mode, the first measurement must be triggered manually,
+        // otherwise it will be from the memory and could be old, or bullshit
+        bmp280_get_temp_and_press(&temp, &press, &params);
     } else {
         printf("[ERROR] BMP280 not found or unexpected ID. Expected: 0x%02X, actual: 0x%02X\n", BMP280_ID, bmp_id);
         bmp_id = 0; // Indicate unsuccessful initialization
@@ -36,9 +42,6 @@ int main() {
 
     while (true) {
         if (bmp_id != 0) {
-            int32_t temp;
-            uint32_t press;
-
             bmp280_get_temp_and_press(&temp, &press, &params);
             printf("Temperature: %ld.%02ld C, Pressure: %lu.%02lu hPa\n", // %ld.%02d is better than %f for embedded, due to no float support
                    temp / 100, labs(temp % 100), // use labs to avoid -1.23 C --> -1.-23 C scenario

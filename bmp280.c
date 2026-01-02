@@ -44,7 +44,6 @@ void bmp280_calibrate(struct bmp280_calib_param* params) {
     bmp_write8(REG_CTRL_MEAS, 0x2F);
 
     uint8_t buf[24];
-    bmp_write8(REG_DIG_T1_LSB, 0);
     bmp_read(REG_DIG_T1_LSB, buf, 24);
 
     // store in a struct for later calculations
@@ -110,7 +109,7 @@ uint32_t bmp280_raw_to_pressure(int32_t raw_press, struct bmp280_calib_param *p,
     pressure_scale =
         (((int64_t)1 << 47) + pressure_scale) * p->dig_p1 >> 33;
 
-    // Avoid division by zero
+    // avoid division by zero (it shouldn't supposed to happen, but who knows)
     if (pressure_scale == 0) {
         return 0;
     }
