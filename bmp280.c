@@ -12,11 +12,11 @@
 static i2c_inst_t *bmp_i2c;
 
 /* -------- I2C helper -------- */
-static void bmp_read(uint8_t reg, uint8_t *buf, uint8_t len) {
+static inline void bmp_read(uint8_t reg, uint8_t *buf, size_t len) {
     i2c_write_blocking(bmp_i2c, BMP280_ADDR, &reg, 1, true);
     i2c_read_blocking(bmp_i2c, BMP280_ADDR, buf, len, false);
 }
-static void bmp_write8(uint8_t reg, uint8_t val) {
+static inline void bmp_write8(uint8_t reg, uint8_t val) {
     uint8_t buf[2] = { reg, val };
     i2c_write_blocking(bmp_i2c, BMP280_ADDR, buf, 2, false);
 }
@@ -76,8 +76,8 @@ void bmp280_calibrate(struct bmp280_calib_param* params) {
 
     // dummy read to warm up the sensor (first measurement is usually inaccurate)
     bmp280_trigger_measurement();
-    bmp280_read_temp_raw();
-    bmp280_read_press_raw();
+    (void)bmp280_read_temp_raw();
+    (void)bmp280_read_press_raw();
 }
 
 int32_t bmp280_read_temp_raw(void) {
