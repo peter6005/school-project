@@ -1,13 +1,6 @@
 #include "bmp280.h"
+#include "config.h"
 #include "pico/stdlib.h"
-
-#define REG_ID         0xD0
-#define REG_TEMP       0xFA
-#define REG_PRESS      0xF7
-#define REG_CALIB      0x88
-#define REG_STATUS     0xF3
-#define REG_CTRL_MEAS  0xF4
-#define BMP280_ADDR    0x76
 
 static i2c_inst_t *bmp_i2c;
 

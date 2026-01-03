@@ -1,12 +1,8 @@
 #include "bmp280.h"
+#include "config.h"
 #include "pico/stdlib.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-#define BMP280_SDA_PIN 4
-#define BMP280_SCL_PIN 5
-#define BMP280_ID 0x58
-#define PICO_ONBOARD_LED_PIN 25
 
 int32_t temp;
 uint32_t press;
