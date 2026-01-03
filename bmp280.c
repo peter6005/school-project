@@ -1,29 +1,35 @@
 #include "bmp280.h"
+#include "pico/stdlib.h"
 
 #define REG_ID         0xD0
 #define REG_TEMP       0xFA
 #define REG_PRESS      0xF7
 #define REG_CALIB      0x88
+#define REG_STATUS     0xF3
 #define REG_CTRL_MEAS  0xF4
-#define REG_DIG_T1_LSB 0x88
+#define BMP280_ADDR    0x76
 
 static i2c_inst_t *bmp_i2c;
-static uint8_t bmp_addr;
 
 /* -------- I2C helper -------- */
 static void bmp_read(uint8_t reg, uint8_t *buf, uint8_t len) {
-    i2c_write_blocking(bmp_i2c, bmp_addr, &reg, 1, true);
-    i2c_read_blocking(bmp_i2c, bmp_addr, buf, len, false);
+    i2c_write_blocking(bmp_i2c, BMP280_ADDR, &reg, 1, true);
+    i2c_read_blocking(bmp_i2c, BMP280_ADDR, buf, len, false);
 }
 static void bmp_write8(uint8_t reg, uint8_t val) {
     uint8_t buf[2] = { reg, val };
-    i2c_write_blocking(bmp_i2c, bmp_addr, buf, 2, false);
+    i2c_write_blocking(bmp_i2c, BMP280_ADDR, buf, 2, false);
 }
 /* ---------------------------- */
 
-void bmp280_attach(i2c_inst_t *i2c, uint8_t addr) {
+void bmp280_i2c_init(i2c_inst_t *i2c, uint8_t sda, uint8_t scl) {
+    // Standart 100kHz I2C init at I2C0 for BMP280
+    i2c_init(i2c, 100000);
+    gpio_set_function(sda, GPIO_FUNC_I2C);
+    gpio_set_function(scl, GPIO_FUNC_I2C);
+    gpio_pull_up(sda);
+    gpio_pull_up(scl);
     bmp_i2c = i2c;
-    bmp_addr = addr;
 }
 
 // see docs/datasheet-bmp280.pdf section 4.3.1:
@@ -36,15 +42,22 @@ uint8_t bmp280_read_id(void) {
     return id;
 }
 
-void bmp280_calibrate(struct bmp280_calib_param* params) {
-    // see docs/datasheet-bmp280.pdf section 4.3.4
-    // our config:
-    // ultra low power mode, temp oversampling x1,
-    // pressure oversampling 1x, forced mode
+void bmp280_trigger_measurement(void) {
+    // set forced mode, temp and press oversampling x1
     bmp_write8(REG_CTRL_MEAS, 0x2F);
 
+    // wait until measurement is complete
+    uint8_t status;
+    do {
+        bmp_read(REG_STATUS, &status, 1);
+        tight_loop_contents(); // better alternative than sleep_ms
+    } while (status & 0x08);
+}
+
+void bmp280_calibrate(struct bmp280_calib_param* params) {
+    // get calibration data from the sensor
     uint8_t buf[24];
-    bmp_read(REG_DIG_T1_LSB, buf, 24);
+    bmp_read(REG_CALIB, buf, 24);
 
     // store in a struct for later calculations
     params->dig_t1 = (uint16_t)(buf[1] << 8) | buf[0];
@@ -60,6 +73,11 @@ void bmp280_calibrate(struct bmp280_calib_param* params) {
     params->dig_p7 = (int16_t)(buf[19] << 8) | buf[18];
     params->dig_p8 = (int16_t)(buf[21] << 8) | buf[20];
     params->dig_p9 = (int16_t)(buf[23] << 8) | buf[22];
+
+    // dummy read to warm up the sensor (first measurement is usually inaccurate)
+    bmp280_trigger_measurement();
+    bmp280_read_temp_raw();
+    bmp280_read_press_raw();
 }
 
 int32_t bmp280_read_temp_raw(void) {
@@ -134,6 +152,9 @@ uint32_t bmp280_raw_to_pressure(int32_t raw_press, struct bmp280_calib_param *p,
 void bmp280_get_temp_and_press(int32_t *temp_centi, uint32_t *press_pa, struct bmp280_calib_param* params)
 {
     int32_t t_fine;
+
+    // due to forced mode, we need to trigger measurement each time
+    bmp280_trigger_measurement();
 
     int32_t raw_temp = bmp280_read_temp_raw();
     *temp_centi = bmp280_raw_to_celsius(raw_temp, params, &t_fine);

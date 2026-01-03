@@ -20,17 +20,18 @@ struct bmp280_calib_param {
     int16_t dig_p9;
 };
 
-void    bmp280_attach(i2c_inst_t *i2c, uint8_t addr);
-uint8_t bmp280_read_id(void);
+void     bmp280_i2c_init(i2c_inst_t *i2c, uint8_t sda, uint8_t scl);
+uint8_t  bmp280_read_id(void);
 
-void    bmp280_calibrate(struct bmp280_calib_param* params);
+void     bmp280_trigger_measurement(void);
+void     bmp280_calibrate(struct bmp280_calib_param* params);
 
-int32_t bmp280_read_temp_raw(void);
-int32_t bmp280_read_press_raw(void);
+int32_t  bmp280_read_temp_raw(void);
+int32_t  bmp280_read_press_raw(void);
 
 int32_t  bmp280_raw_to_celsius(int32_t raw_temp, struct bmp280_calib_param *params, int32_t *t_fine);
 uint32_t bmp280_raw_to_pressure(int32_t raw_press, struct bmp280_calib_param *params, int32_t t_fine);
 
-void    bmp280_get_temp_and_press(int32_t* temp_centi, uint32_t* press_hpa, struct bmp280_calib_param* params);
+void     bmp280_get_temp_and_press(int32_t* temp_centi, uint32_t* press_hpa, struct bmp280_calib_param* params);
 
 #endif

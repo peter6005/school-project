@@ -3,14 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define SDA_PIN 4
-#define SCL_PIN 5
-#define BMP280_ADDR 0x76
+#define BMP280_SDA_PIN 4
+#define BMP280_SCL_PIN 5
 #define BMP280_ID 0x58
 #define PICO_ONBOARD_LED_PIN 25
 
 int32_t temp;
 uint32_t press;
+struct bmp280_calib_param params;
 
 int main() {
     stdio_init_all();
@@ -18,23 +18,13 @@ int main() {
     // Wait for USB debug connection
     while (!stdio_usb_connected()) sleep_ms(100);
 
-    printf("BMP280 test\n");
+    printf("hello world\n");
 
-    // Standart 100kHz I2C init at I2C0 for BMP280
-    i2c_init(i2c0, 100000);
-    gpio_set_function(SDA_PIN, GPIO_FUNC_I2C);
-    gpio_set_function(SCL_PIN, GPIO_FUNC_I2C);
-    gpio_pull_up(SDA_PIN);
-    gpio_pull_up(SCL_PIN);
-    bmp280_attach(i2c0, BMP280_ADDR);
-    struct bmp280_calib_param params;
+    bmp280_i2c_init(i2c0, BMP280_SDA_PIN, BMP280_SCL_PIN);
 
     uint8_t bmp_id = bmp280_read_id();
     if (bmp_id == BMP280_ID) {
         bmp280_calibrate(&params);
-        // After calibration, in forced mode, the first measurement must be triggered manually,
-        // otherwise it will be from the memory and could be old, or bullshit
-        bmp280_get_temp_and_press(&temp, &press, &params);
     } else {
         printf("[ERROR] BMP280 not found or unexpected ID. Expected: 0x%02X, actual: 0x%02X\n", BMP280_ID, bmp_id);
         bmp_id = 0; // Indicate unsuccessful initialization
@@ -48,6 +38,7 @@ int main() {
                    press / 100, press % 100);
         }
 
+        // TODO: NEVER USE SLEEP_MS IN PRODUCTION CODE
         sleep_ms(500);
     }
 }
