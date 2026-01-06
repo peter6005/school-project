@@ -3,6 +3,6 @@
 - [ ] OV7670 alternatíva keresése (nincs FIFO támogatás, és driver, felejtős)
 - [ ] SD-kártyás logolás
 - [ ] plusz szenzor beszerzése, szoftver megírása hozzá
-- [ ] LoRa modulhoz megírni, megtervezni a logikáját és adatstruktúráját (forrasztás alatt)
+- [ ] LoRa modulhoz megírni, megtervezni a logikáját és adatstruktúráját (tesztelés alatt)
 - [ ] nem sleep_ms blokkoló időzítést használni
 - [ ] kijelzőt mire használjuk?
