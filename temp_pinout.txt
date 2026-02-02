@@ -1,0 +1,20 @@
+bool esp32_s3_cam() {
+    pins.d0 = 11;   // Y2_GPIO_NUM
+    pins.d1 = 9;    // Y3_GPIO_NUM
+    pins.d2 = 8;    // Y4_GPIO_NUM
+    pins.d3 = 10;   // Y5_GPIO_NUM
+    pins.d4 = 12;   // Y6_GPIO_NUM
+    pins.d5 = 18;   // Y7_GPIO_NUM
+    pins.d6 = 17;   // Y8_GPIO_NUM
+    pins.d7 = 16;   // Y9_GPIO_NUM
+    pins.xclk = 15; // XCLK_GPIO_NUM
+    pins.pclk = 13; // PCLK_GPIO_NUM
+    pins.vsync = 6; // VSYNC_GPIO_NUM
+    pins.href = 7;  // HREF_GPIO_NUM
+    pins.sccb_sda = 4;  // SIOD_GPIO_NUM
+    pins.sccb_scl = 5;  // SIOC_GPIO_NUM
+    pins.pwdn = -1;     // PWDN_GPIO_NUM
+    pins.reset = -1;    // RESET_GPIO_NUM
+    pins.flashlight = -1;
+    return true;
+}
