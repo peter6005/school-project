@@ -51,9 +51,7 @@ bool lora_ok = false;
 char line_buffer[96];
 volatile bool line_ready = false;
 
-// ==========================================
-// CORE 1 — LoRa ONLY
-// ==========================================
+// CORE 1 - LoRa ONLY
 void core1_lora_task() {
 
   SPI.setRX(LORA_MISO);
@@ -98,9 +96,7 @@ void core1_lora_task() {
   }
 }
 
-// ==========================================
-// SETUP — CORE 0
-// ==========================================
+// SETUP - CORE 0
 void setup() {
 #if DEBUG_CAM_ENABLE
   Serial.begin(115200);
@@ -147,9 +143,7 @@ void setup() {
 #endif
 }
 
-// ==========================================
-// LOOP — CORE 0
-// ==========================================
+// LOOP - CORE 0
 void loop() {
 #if DEBUG_CAM_ENABLE
   static bool cam_on = false;
