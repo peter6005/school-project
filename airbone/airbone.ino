@@ -7,6 +7,9 @@
 #include <Adafruit_SGP30.h>
 #include <DHT.h>
 #include "pico/multicore.h"
+#include "pico/cyw43_arch.h"
+
+#define SEA_LEVEL_PRESSURE 101325.0f
 
 // I2C
 #define I2C_SDA 4
@@ -27,12 +30,6 @@
 
 // ESP32-CAM enable (PNP -> enable pin)
 #define CAM_ENABLE_PIN 27
-#define CAM_ON_MS  10000
-#define CAM_OFF_MS 10000
-
-// ----- DEBUG -----
-// 1 = debug: 10s on / 10s off on CAM_ENABLE_PIN, nothing else
-#define DEBUG_CAM_ENABLE 1
 
 // DHT
 #define DHT_PIN 28
@@ -48,10 +45,20 @@ bool sgp_ok = false;
 bool dht_ok = false;
 bool sd_ok  = false;
 bool lora_ok = false;
-char line_buffer[96];
+
+char line_buffer[128];
 volatile bool line_ready = false;
 
-// CORE 1 - LoRa ONLY
+// ---------- BASIC XOR CHECKSUM ----------
+uint8_t simple_checksum(const char *data) {
+  uint8_t cs = 0;
+  while (*data) {
+    cs ^= (uint8_t)(*data++);
+  }
+  return cs;
+}
+
+// ---------- CORE1 LoRa ----------
 void core1_lora_task() {
 
   SPI.setRX(LORA_MISO);
@@ -75,19 +82,6 @@ void core1_lora_task() {
 
     if (!line_ready || !lora_ok) continue;
 
-    // ha minden mező üres -> ne küldjük
-    bool has_data = false;
-    for (uint8_t i = 0; i < strlen(line_buffer); i++) {
-      if (line_buffer[i] != ',' && line_buffer[i] != '\n') {
-        has_data = true;
-        break;
-      }
-    }
-    if (!has_data) {
-      line_ready = false;
-      continue;
-    }
-
     LoRa.beginPacket();
     LoRa.print(line_buffer);
     LoRa.endPacket();
@@ -96,17 +90,14 @@ void core1_lora_task() {
   }
 }
 
-// SETUP - CORE 0
+// ---------- SETUP ----------
 void setup() {
-#if DEBUG_CAM_ENABLE
-  Serial.begin(115200);
-  delay(200);
 
-  pinMode(CAM_ENABLE_PIN, OUTPUT);
-  digitalWrite(CAM_ENABLE_PIN, HIGH);
-#else
   Serial.begin(115200);
-  delay(1000);
+  delay(500);
+
+  // kill onboard radio ASAP
+  cyw43_arch_deinit();
 
   pinMode(CAM_ENABLE_PIN, OUTPUT);
   digitalWrite(CAM_ENABLE_PIN, HIGH);
@@ -115,10 +106,8 @@ void setup() {
   Wire.setSCL(I2C_SCL);
   Wire.begin();
 
-  // BMP280
   bmp_ok = bmp.begin(0x76);
 
-  // SGP30
   sgp_ok = sgp.begin();
   if (sgp_ok) {
     for (int i = 0; i < 15; i++) {
@@ -127,12 +116,10 @@ void setup() {
     }
   }
 
-  // DHT
   dht.begin();
   delay(200);
   dht_ok = !isnan(dht.readTemperature());
 
-  // SD
   SPI1.setRX(SD_MISO);
   SPI1.setTX(SD_MOSI);
   SPI1.setSCK(SD_SCK);
@@ -140,57 +127,39 @@ void setup() {
   sd_ok = SD.begin(SD_CS, SPI1);
 
   multicore_launch_core1(core1_lora_task);
-#endif
 }
 
-// LOOP - CORE 0
+// ---------- LOOP ----------
 void loop() {
-#if DEBUG_CAM_ENABLE
-  static bool cam_on = false;
-  static uint32_t last_toggle_ms = 0;
 
-  uint32_t now = millis();
-  uint32_t interval = cam_on ? CAM_ON_MS : CAM_OFF_MS;
-
-  if (now - last_toggle_ms >= interval) {
-    cam_on = !cam_on;
-    digitalWrite(CAM_ENABLE_PIN, cam_on ? HIGH : LOW);
-    last_toggle_ms = now;
-  }
-
-  delay(20);
-#else
-  char buf[96];
+  char buf[128];
   buf[0] = 0;
 
   // ---------- BMP280 ----------
   if (bmp_ok) {
-    int32_t t = (int32_t)(bmp.readTemperature() * 100); 
-    int32_t p = (int32_t)(bmp.readPressure() * 100 / 100.0);
+    int32_t t = (int32_t)(bmp.readTemperature() * 100);
+    int32_t p = (int32_t)(bmp.readPressure());
 
-    // validate
-    if (t > -4000 && t < 8500 && p > 30000 && p < 120000) { 
-        char tmp[24];
-        snprintf(tmp, sizeof(tmp), "%ld,%ld,", t, p);
-        strcat(buf, tmp);
+    float altitude_f = 44330.0f * (1.0f - powf((float)p / SEA_LEVEL_PRESSURE, 0.1903f));
+    int32_t alt = (int32_t)(altitude_f * 100);
+
+    if (t > -4000 && t < 8500 && p > 30000 && p < 120000) {
+      char tmp[48];
+      snprintf(tmp, sizeof(tmp), "%ld,%ld,%ld,", t, p, alt);
+      strcat(buf, tmp);
     } else {
-        bmp_ok = false;
-        strcat(buf, ",,");
+      bmp_ok = false;
+      strcat(buf, ",,,");
     }
   } else {
-    strcat(buf, ",,");
+    strcat(buf, ",,,");
   }
 
   // ---------- SGP30 ----------
-  if (sgp_ok) {
-    if (sgp.IAQmeasure()) {
-        char tmp[24];
-        snprintf(tmp, sizeof(tmp), "%u,%u,", sgp.eCO2, sgp.TVOC);
-        strcat(buf, tmp);
-    } else {
-        sgp_ok = false;
-        strcat(buf, ",,");
-    }
+  if (sgp_ok && sgp.IAQmeasure()) {
+    char tmp[32];
+    snprintf(tmp, sizeof(tmp), "%u,%u,", sgp.eCO2, sgp.TVOC);
+    strcat(buf, tmp);
   } else {
     strcat(buf, ",,");
   }
@@ -201,18 +170,21 @@ void loop() {
     int32_t dh = (int32_t)(dht.readHumidity() * 100);
 
     if (dt > -4000 && dt < 8500 && dh >= 0 && dh <= 10000) {
-        char tmp[24];
-        snprintf(tmp, sizeof(tmp), "%ld,%ld", dt, dh);
-        strcat(buf, tmp);
+      char tmp[32];
+      snprintf(tmp, sizeof(tmp), "%ld,%ld", dt, dh);
+      strcat(buf, tmp);
     } else {
-        dht_ok = false;
-        strcat(buf, ",");
+      strcat(buf, ",");
     }
   } else {
     strcat(buf, ",");
   }
 
-  strcat(buf, "\n");
+  // ---------- CHECKSUM ----------
+  uint8_t cs = simple_checksum(buf);
+  char cs_str[8];
+  snprintf(cs_str, sizeof(cs_str), ",%02X\n", cs);
+  strcat(buf, cs_str);
 
   // ---------- SD ----------
   if (sd_ok) {
@@ -223,16 +195,12 @@ void loop() {
     }
   }
 
-  // ---------- ESP32-CAM trigger ----------
-  // put your code here
-
-  // ---------- send to core1 ----------
-  if (lora_ok && (bmp_ok || sgp_ok || dht_ok)) {
+  // ---------- LORA ----------
+  if (lora_ok) {
     strcpy(line_buffer, buf);
     line_ready = true;
     multicore_fifo_push_blocking(1);
   }
 
-  delay(724);
-#endif
+  delay(900);
 }
