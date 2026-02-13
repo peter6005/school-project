@@ -19,19 +19,22 @@ jobs:
           version: '6.6.2'
           host: 'windows'
           target: 'desktop'
-          arch: 'win64_mingw'
+          arch: 'win64_msvc2019_64'
           modules: 'qtcharts qtserialport'
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure
         run: |
           mkdir build
           cd build
-          cmake ../app -G "MinGW Makefiles"
+          cmake ../app -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
         run: |
           cd build
-          mingw32-make -j4
+          cmake --build . --config Release
 
       - name: Deploy Qt
         run: |
