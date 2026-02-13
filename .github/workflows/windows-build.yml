@@ -39,10 +39,10 @@ jobs:
       - name: Deploy Qt
         run: |
           cd build
-          windeployqt *.exe
+          windeployqt Release/*.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: Windows-EXE
-          path: build/
+          path: build/Release/
