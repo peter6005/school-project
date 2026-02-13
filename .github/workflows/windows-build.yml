@@ -1,0 +1,45 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.6.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_mingw'
+          modules: 'qtcharts qtserialport'
+
+      - name: Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ../app -G "MinGW Makefiles"
+
+      - name: Build
+        run: |
+          cd build
+          mingw32-make -j4
+
+      - name: Deploy Qt
+        run: |
+          cd build
+          windeployqt *.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-EXE
+          path: build/
